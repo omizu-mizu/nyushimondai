@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# アップロードされたPDFや生成画像・インデックスはリポジトリに含めない
+data/uploads/*
+data/images/*
+data/index.json
+!data/uploads/.gitkeep
+!data/images/.gitkeep

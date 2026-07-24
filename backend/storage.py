@@ -1,0 +1,43 @@
+"""問題のメタデータを保持する単純なJSONファイルストア。"""
+import json
+import os
+import threading
+
+_LOCK = threading.Lock()
+
+
+class Storage:
+    def __init__(self, index_path):
+        self.index_path = index_path
+        if not os.path.exists(index_path):
+            self._write({"pdfs": [], "blocks": []})
+
+    def _read(self):
+        with open(self.index_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _write(self, data):
+        with open(self.index_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def add_pdf(self, pdf_meta, blocks):
+        with _LOCK:
+            data = self._read()
+            data["pdfs"].append(pdf_meta)
+            for b in blocks:
+                b["pdf_id"] = pdf_meta["id"]
+            data["blocks"].extend(blocks)
+            self._write(data)
+
+    def all(self):
+        with _LOCK:
+            return self._read()
+
+    def delete_pdf(self, pdf_id):
+        with _LOCK:
+            data = self._read()
+            data["pdfs"] = [p for p in data["pdfs"] if p["id"] != pdf_id]
+            removed_blocks = [b for b in data["blocks"] if b["pdf_id"] == pdf_id]
+            data["blocks"] = [b for b in data["blocks"] if b["pdf_id"] != pdf_id]
+            self._write(data)
+            return removed_blocks
