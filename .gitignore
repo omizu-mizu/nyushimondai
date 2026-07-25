@@ -9,3 +9,6 @@ data/images/*
 data/index.json
 !data/uploads/.gitkeep
 !data/images/.gitkeep
+
+# 各自の環境でのtesseract.exeパス(マシン固有なのでコミットしない)
+backend/tesseract_path.txt

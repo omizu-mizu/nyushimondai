@@ -28,10 +28,26 @@ from scipy import ndimage
 from units import UNIT_KEYWORDS
 
 # Windowsなど、tesseractの実行ファイルがPATHに無い環境向け。
-# 環境変数 TESSERACT_CMD に実行ファイルのフルパスを設定すると優先的に使われる
-# (例: C:\Program Files\Tesseract-OCR\tesseract.exe)。
-if os.environ.get("TESSERACT_CMD"):
-    pytesseract.pytesseract.tesseract_cmd = os.environ["TESSERACT_CMD"]
+# 優先順位: 環境変数 TESSERACT_CMD > backend/tesseract_path.txt の中身。
+# シェルの環境変数はウィンドウを閉じると消えたり、uvicornのリロード用
+# 子プロセスに引き継がれないことがあるため、テキストファイルに書く方式も
+# 用意している(このファイルの中身は1行目にexeへのフルパスを書くだけでよい)。
+def _resolve_tesseract_cmd():
+    env_value = os.environ.get("TESSERACT_CMD")
+    if env_value and env_value.strip():
+        return env_value.strip()
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tesseract_path.txt")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            value = f.read().strip()
+            if value:
+                return value
+    return None
+
+
+_tesseract_cmd = _resolve_tesseract_cmd()
+if _tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd
 
 ZOOM = 2.0
 
