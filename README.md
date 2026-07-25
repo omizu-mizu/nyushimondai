@@ -92,6 +92,34 @@ pip install -r requirements.txt
    pip install -r requirements.txt
    ```
 
+#### 管理者権限が無く、上記インストーラーも実行できない場合(Miniconda経由)
+
+UB-Mannheim版インストーラーで「Install for all users」のチェックを外せば個人フォルダに
+インストールでき、通常はこれで管理者権限は不要です。それでも権限エラーになる場合は、
+Minicondaを使うと環境ごとインストールできます。
+
+1. [Miniconda](https://docs.conda.io/en/latest/miniconda.html)をダウンロードし、
+   インストール時に「Just Me (recommended)」を選択する(個人フォルダに入るため管理者権限不要)。
+2. 「Anaconda Prompt (Miniconda3)」を開き、専用の環境を作ってTesseractを入れる。
+   ```
+   conda create -n nyushimondai python=3.11
+   conda activate nyushimondai
+   conda install -c conda-forge tesseract
+   ```
+3. conda-forge版は日本語データを含まないことが多いため、
+   [tesseract公式tessdataリポジトリ](https://github.com/tesseract-ocr/tessdata)から
+   `jpn.traineddata` をダウンロードし、環境内の `tessdata` フォルダ
+   (例: `%USERPROFILE%\miniconda3\envs\nyushimondai\share\tessdata\`)に置く。
+4. `where tesseract` で実行ファイルの場所を確認し、`TESSERACT_CMD` に設定する
+   (例: `%USERPROFILE%\miniconda3\envs\nyushimondai\Library\bin\tesseract.exe`)。
+5. 同じconda環境にアプリの依存関係もインストールして起動する。
+   ```
+   pip install -r requirements.txt
+   $env:TESSERACT_CMD = "上で確認したパス"
+   cd backend
+   uvicorn main:app --reload
+   ```
+
 ## 起動
 
 ```bash
