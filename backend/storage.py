@@ -20,18 +20,49 @@ class Storage:
         with open(self.index_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def add_pdf(self, pdf_meta, blocks):
+    def add_pdf_pending(self, pdf_meta):
         with _LOCK:
             data = self._read()
             data["pdfs"].append(pdf_meta)
+            self._write(data)
+
+    def update_pdf(self, pdf_id, **fields):
+        with _LOCK:
+            data = self._read()
+            for p in data["pdfs"]:
+                if p["id"] == pdf_id:
+                    p.update(fields)
+                    break
+            self._write(data)
+
+    def finish_pdf(self, pdf_id, blocks):
+        with _LOCK:
+            data = self._read()
+            for p in data["pdfs"]:
+                if p["id"] == pdf_id:
+                    p["status"] = "done"
+                    p["error"] = None
+                    break
             for b in blocks:
-                b["pdf_id"] = pdf_meta["id"]
+                b["pdf_id"] = pdf_id
             data["blocks"].extend(blocks)
             self._write(data)
 
     def all(self):
         with _LOCK:
             return self._read()
+
+    def update_block(self, block_id, **fields):
+        with _LOCK:
+            data = self._read()
+            updated = None
+            for b in data["blocks"]:
+                if b["id"] == block_id:
+                    b.update(fields)
+                    updated = b
+                    break
+            self._write(data)
+            return updated
 
     def delete_pdf(self, pdf_id):
         with _LOCK:

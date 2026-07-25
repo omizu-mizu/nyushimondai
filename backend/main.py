@@ -1,17 +1,19 @@
 import os
 import shutil
+import threading
+import traceback
 import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from pdf_processor import process_pdf
 from storage import Storage
-from units import UNIT_KEYWORDS, expand_keywords
+from units import UNIT_KEYWORDS, expand_keywords, resolve_unit_key
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "..", "data")
@@ -25,7 +27,7 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 
 storage = Storage(INDEX_PATH)
 
-app = FastAPI(title="入試問題リファレンスアプリ")
+app = FastAPI(title="入試問題集リファレンスアプリ")
 
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -39,8 +41,8 @@ def index():
 @app.get("/api/meta")
 def meta():
     data = storage.all()
-    universities = sorted({p["university"] for p in data["pdfs"] if p.get("university")})
-    subjects = sorted({p["subject"] for p in data["pdfs"] if p.get("subject")})
+    universities = sorted({b["university"] for b in data["blocks"] if b.get("university")})
+    subjects = sorted({b["subject"] for b in data["blocks"] if b.get("subject")})
     return {
         "units": list(UNIT_KEYWORDS.keys()),
         "universities": universities,
@@ -65,6 +67,33 @@ def list_pdfs():
     return result
 
 
+@app.get("/api/blocks")
+def list_blocks(pdf_id: Optional[str] = None):
+    data = storage.all()
+    blocks = data["blocks"]
+    if pdf_id:
+        blocks = [b for b in blocks if b["pdf_id"] == pdf_id]
+    return blocks
+
+
+class BlockUpdate(BaseModel):
+    university: Optional[str] = None
+    year: Optional[str] = None
+    subject: Optional[str] = None
+    unit_tags: Optional[List[str]] = None
+
+
+@app.patch("/api/blocks/{block_id}")
+def update_block(block_id: str, body: BlockUpdate):
+    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not fields:
+        raise HTTPException(status_code=400, detail="更新する項目がありません")
+    updated = storage.update_block(block_id, **fields)
+    if not updated:
+        raise HTTPException(status_code=404, detail="指定された問題が見つかりません")
+    return updated
+
+
 @app.delete("/api/pdfs/{pdf_id}")
 def delete_pdf(pdf_id: str):
     data = storage.all()
@@ -85,18 +114,22 @@ def delete_pdf(pdf_id: str):
     return {"status": "deleted"}
 
 
-@app.post("/api/upload")
-async def upload(
-    files: List[UploadFile] = File(...),
-    universities: List[str] = Form(...),
-    years: List[str] = Form(...),
-    subjects: List[str] = Form(...),
-):
-    if not (len(files) == len(universities) == len(years) == len(subjects)):
-        raise HTTPException(status_code=400, detail="メタデータの件数がファイル数と一致しません")
+def _process_in_background(pdf_id, stored_path):
+    def progress_cb(done, total):
+        storage.update_pdf(pdf_id, pages_done=done, pages_total=total)
 
+    try:
+        blocks = process_pdf(stored_path, IMAGES_DIR, progress_cb=progress_cb)
+        storage.finish_pdf(pdf_id, blocks)
+    except Exception as e:
+        traceback.print_exc()
+        storage.update_pdf(pdf_id, status="error", error=str(e))
+
+
+@app.post("/api/upload")
+async def upload(files: List[UploadFile] = File(...)):
     results = []
-    for f, university, year, subject in zip(files, universities, years, subjects):
+    for f in files:
         if not f.filename.lower().endswith(".pdf"):
             results.append({"filename": f.filename, "status": "error", "detail": "PDFファイルのみ対応しています"})
             continue
@@ -107,28 +140,22 @@ async def upload(
         with open(stored_path, "wb") as out:
             shutil.copyfileobj(f.file, out)
 
-        try:
-            blocks = process_pdf(stored_path, IMAGES_DIR)
-        except Exception as e:
-            os.remove(stored_path)
-            results.append({"filename": f.filename, "status": "error", "detail": f"処理に失敗しました: {e}"})
-            continue
-
         pdf_meta = {
             "id": pdf_id,
             "filename": f.filename,
             "stored_filename": stored_filename,
-            "university": university.strip(),
-            "year": year.strip(),
-            "subject": subject.strip(),
             "uploaded_at": datetime.utcnow().isoformat(),
+            "status": "processing",
+            "error": None,
+            "pages_done": 0,
+            "pages_total": None,
         }
-        storage.add_pdf(pdf_meta, blocks)
-        results.append({
-            "filename": f.filename,
-            "status": "ok",
-            "block_count": len(blocks),
-        })
+        storage.add_pdf_pending(pdf_meta)
+
+        thread = threading.Thread(target=_process_in_background, args=(pdf_id, stored_path), daemon=True)
+        thread.start()
+
+        results.append({"filename": f.filename, "status": "processing", "pdf_id": pdf_id})
 
     return {"results": results}
 
@@ -140,6 +167,9 @@ class SearchRequest(BaseModel):
     subject: Optional[str] = None
 
 
+UNIT_TAG_SCORE_BONUS = 5
+
+
 @app.post("/api/search")
 def search(req: SearchRequest):
     if req.count <= 0:
@@ -148,26 +178,28 @@ def search(req: SearchRequest):
     keywords = expand_keywords(req.unit)
     if not keywords:
         raise HTTPException(status_code=400, detail="単元を入力してください")
+    resolved_key = resolve_unit_key(req.unit)
 
     data = storage.all()
-    pdf_by_id = {p["id"]: p for p in data["pdfs"]}
+    pdfs_done = {p["id"] for p in data["pdfs"] if p.get("status") == "done"}
 
     scored = []
     for block in data["blocks"]:
-        pdf = pdf_by_id.get(block["pdf_id"])
-        if not pdf:
+        if block["pdf_id"] not in pdfs_done:
             continue
         if req.university and req.university.strip():
-            if req.university.strip() not in (pdf.get("university") or ""):
+            if req.university.strip() not in (block.get("university") or ""):
                 continue
         if req.subject and req.subject.strip():
-            if req.subject.strip() not in (pdf.get("subject") or ""):
+            if req.subject.strip() not in (block.get("subject") or ""):
                 continue
 
         text = block["text"]
         score = sum(text.count(kw) for kw in keywords)
+        if resolved_key and resolved_key in (block.get("unit_tags") or []):
+            score += UNIT_TAG_SCORE_BONUS
         if score > 0:
-            scored.append((score, block, pdf))
+            scored.append((score, block))
 
     scored.sort(key=lambda x: x[0], reverse=True)
     selected = scored[: req.count]
@@ -180,16 +212,14 @@ def search(req: SearchRequest):
             {
                 "id": block["id"],
                 "label": block["label"],
-                "university": pdf.get("university") or "不明",
-                "year": pdf.get("year") or "",
-                "subject": pdf.get("subject") or "",
-                "source_filename": pdf["filename"],
-                "page_start": block["page_start"],
-                "page_end": block["page_end"],
+                "university": block.get("university") or "不明",
+                "year": block.get("year") or "",
+                "subject": block.get("subject") or "",
+                "unit_tags": block.get("unit_tags") or [],
                 "image_url": f"/images/{block['image_file']}",
                 "score": score,
                 "excerpt": block["text"][:80],
             }
-            for score, block, pdf in selected
+            for score, block in selected
         ],
     }

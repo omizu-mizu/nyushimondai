@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>入試問題リファレンス</title>
+  <title>入試問題集リファレンス</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header class="app-header">
-    <h1>入試問題リファレンス</h1>
-    <p class="subtitle">入試問題PDFをアップロードし、単元・問題数・大学名から問題を検索します</p>
+    <h1>入試問題集リファレンス</h1>
+    <p class="subtitle">入試問題集PDFをアップロードし、単元・問題数・大学名から問題を検索します</p>
   </header>
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="search">問題を探す</button>
     <button class="tab-btn" data-tab="upload">PDFアップロード</button>
-    <button class="tab-btn" data-tab="list">アップロード済み一覧</button>
+    <button class="tab-btn" data-tab="review">検出結果の確認・修正</button>
   </nav>
 
   <main>
@@ -32,7 +32,7 @@
         </div>
         <div class="form-row">
           <label for="university-input">大学名 (任意)</label>
-          <input id="university-input" name="university" list="university-list" placeholder="例: 東京大学" />
+          <input id="university-input" name="university" list="university-list" placeholder="例: 札幌大学" />
           <datalist id="university-list"></datalist>
         </div>
         <div class="form-row">
@@ -50,17 +50,21 @@
     <section id="tab-upload" class="tab-panel">
       <form id="upload-form" class="card">
         <div class="form-row">
-          <label for="file-input">入試問題PDF (複数選択可)</label>
+          <label for="file-input">入試問題集PDF (複数選択可)</label>
           <input id="file-input" type="file" accept="application/pdf" multiple required />
         </div>
-        <div id="file-meta-list"></div>
+        <p class="hint">
+          大学名・年度・科目・単元はページ内容から自動的に読み取ります(OCR)。
+          ページ数が多いPDFは解析に時間がかかります。完了後は「検出結果の確認・修正」タブで内容を確認してください。
+        </p>
         <button type="submit">アップロードして解析</button>
       </form>
       <div id="upload-status" class="status"></div>
+      <div id="upload-progress" class="card" style="display:none;"></div>
     </section>
 
-    <section id="tab-list" class="tab-panel">
-      <div id="pdf-list" class="card"></div>
+    <section id="tab-review" class="tab-panel">
+      <div id="review-list" class="card"></div>
     </section>
   </main>
 

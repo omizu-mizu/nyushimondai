@@ -3,12 +3,13 @@
 # 入力文字列そのものをキーワードとして全文検索する(数学以外の科目にも対応するためのフォールバック)。
 UNIT_KEYWORDS = {
     "数と式": ["数と式", "因数分解", "展開", "不等式", "絶対値"],
+    "式と証明": ["式と証明", "高次方程式", "恒等式", "分数式", "相加相乗平均", "二項定理", "剰余の定理"],
     "二次関数": ["二次関数", "放物線", "頂点", "判別式", "最大値", "最小値"],
     "図形と計量": ["三角比", "正弦定理", "余弦定理", "図形と計量"],
     "図形の性質": ["図形の性質", "内接円", "外接円", "方べきの定理", "相似", "メネラウス", "チェバ"],
     "場合の数と確率": ["確率", "場合の数", "順列", "組合せ", "期待値", "反復試行", "条件付き確率"],
     "整数の性質": ["整数の性質", "約数", "倍数", "互除法", "合同式", "不定方程式"],
-    "データの分析": ["データの分析", "分散", "標準偏差", "相関係数", "四分位", "散布図", "偏差値"],
+    "データの分析": ["データの分析", "データの整理と代表値", "代表値", "中央値", "分散", "標準偏差", "相関係数", "四分位", "散布図", "偏差値"],
     "三角関数": ["三角関数", "加法定理", "sin", "cos", "tan", "sinθ", "cosθ"],
     "指数関数・対数関数": ["指数関数", "対数関数", "対数", "指数", "常用対数"],
     "図形と方程式": ["図形と方程式", "軌跡", "領域", "円の方程式"],
@@ -20,11 +21,20 @@ UNIT_KEYWORDS = {
 }
 
 
-def expand_keywords(query: str):
+def resolve_unit_key(query: str):
+    """入力文字列が辞書のどの単元キーに対応するかを返す(一致しなければNone)。"""
     query = (query or "").strip()
     if not query:
-        return []
+        return None
     for key, synonyms in UNIT_KEYWORDS.items():
         if query == key or query in synonyms or key in query:
-            return synonyms
-    return [query]
+            return key
+    return None
+
+
+def expand_keywords(query: str):
+    key = resolve_unit_key(query)
+    if key:
+        return UNIT_KEYWORDS[key]
+    query = (query or "").strip()
+    return [query] if query else []

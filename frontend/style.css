@@ -204,3 +204,115 @@ table td {
 .delete-btn:hover {
   background: #fee2e2;
 }
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -6px 0 14px;
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--accent);
+  font-size: 0.78rem;
+  margin-right: 4px;
+}
+
+.pdf-progress-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pdf-progress-row:last-child {
+  border-bottom: none;
+}
+
+.pdf-progress-row .filename {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.progress-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.review-pdf-group {
+  margin-bottom: 24px;
+}
+
+.review-pdf-group h3 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.review-pdf-group .pdf-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.review-block {
+  display: flex;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.review-block img {
+  width: 140px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.review-block .fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.review-block .fields label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.review-block input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.review-block .save-btn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  background: #fff;
+  color: var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.review-block .save-btn:hover {
+  background: #eef2ff;
+}
