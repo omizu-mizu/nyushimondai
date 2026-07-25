@@ -27,6 +27,12 @@ from scipy import ndimage
 
 from units import UNIT_KEYWORDS
 
+# Windowsなど、tesseractの実行ファイルがPATHに無い環境向け。
+# 環境変数 TESSERACT_CMD に実行ファイルのフルパスを設定すると優先的に使われる
+# (例: C:\Program Files\Tesseract-OCR\tesseract.exe)。
+if os.environ.get("TESSERACT_CMD"):
+    pytesseract.pytesseract.tesseract_cmd = os.environ["TESSERACT_CMD"]
+
 ZOOM = 2.0
 
 # 大問番号アイコン(黒背景・白文字の正方形)検出パラメータ

@@ -46,14 +46,51 @@ OCRには誤読が付き物です。特に数式(分数・ルート・添字な�
 
 Tesseract OCR(日本語データ含む)が必要です。
 
+### Debian/Ubuntu
+
 ```bash
-# Debian/Ubuntu の場合
 sudo apt-get install -y tesseract-ocr tesseract-ocr-jpn
 
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### macOS
+
+```bash
+brew install tesseract tesseract-lang  # 日本語データを含む全言語パックが入る
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Windows
+
+1. [UB-Mannheim版Tesseractインストーラー](https://github.com/UB-Mannheim/tesseract/wiki)をダウンロードして実行する。
+   インストール中の「Additional language data」の選択画面で **Japanese** に必ずチェックを入れる
+   (デフォルトでは英語のみで日本語データが入らない)。
+2. インストール先(既定では `C:\Program Files\Tesseract-OCR\tesseract.exe`)を確認する。
+3. `backend` フォルダに `.env` ファイルを作るか、起動前に環境変数を設定して
+   tesseract の場所をアプリに伝える(PATHを編集しなくても動くようにしてあります)。
+
+   PowerShellの場合:
+   ```powershell
+   $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
+   ```
+   コマンドプロンプトの場合:
+   ```cmd
+   set TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
+   ```
+   (毎回設定するのが面倒な場合は、システム環境変数として `TESSERACT_CMD` を登録すれば恒久的に反映されます。)
+
+4. Python環境をセットアップする。
+   ```powershell
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
 
 ## 起動
 
