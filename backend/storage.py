@@ -35,7 +35,20 @@ class Storage:
                     break
             self._write(data)
 
-    def finish_pdf(self, pdf_id, blocks):
+    def append_blocks(self, pdf_id, blocks):
+        """処理中のPDFについて、完了したエントリ分のブロックを逐次保存する。
+        処理が途中で中断されても、ここで保存済みのブロックは失われない。
+        """
+        if not blocks:
+            return
+        with _LOCK:
+            data = self._read()
+            for b in blocks:
+                b["pdf_id"] = pdf_id
+            data["blocks"].extend(blocks)
+            self._write(data)
+
+    def mark_pdf_done(self, pdf_id):
         with _LOCK:
             data = self._read()
             for p in data["pdfs"]:
@@ -43,9 +56,6 @@ class Storage:
                     p["status"] = "done"
                     p["error"] = None
                     break
-            for b in blocks:
-                b["pdf_id"] = pdf_id
-            data["blocks"].extend(blocks)
             self._write(data)
 
     def all(self):

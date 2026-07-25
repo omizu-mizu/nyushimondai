@@ -118,9 +118,14 @@ def _process_in_background(pdf_id, stored_path):
     def progress_cb(done, total):
         storage.update_pdf(pdf_id, pages_done=done, pages_total=total)
 
+    def on_entry_blocks(blocks):
+        # 1大学分の解析が終わるたびに逐次保存する。処理が途中で中断されても
+        # ここまでに保存された分は失われない(検索対象にもすぐ反映される)。
+        storage.append_blocks(pdf_id, blocks)
+
     try:
-        blocks = process_pdf(stored_path, IMAGES_DIR, progress_cb=progress_cb)
-        storage.finish_pdf(pdf_id, blocks)
+        process_pdf(stored_path, IMAGES_DIR, progress_cb=progress_cb, on_entry_blocks=on_entry_blocks)
+        storage.mark_pdf_done(pdf_id)
     except Exception as e:
         traceback.print_exc()
         storage.update_pdf(pdf_id, status="error", error=str(e))
@@ -181,12 +186,12 @@ def search(req: SearchRequest):
     resolved_key = resolve_unit_key(req.unit)
 
     data = storage.all()
-    pdfs_done = {p["id"] for p in data["pdfs"] if p.get("status") == "done"}
 
+    # ブロックはエントリ(1大学分)の解析が完了した時点で逐次保存されるため、
+    # 親PDF全体がまだ処理中(status=processing)でも、既に保存済みのブロックは
+    # 完成したデータとして検索対象に含めてよい。
     scored = []
     for block in data["blocks"]:
-        if block["pdf_id"] not in pdfs_done:
-            continue
         if req.university and req.university.strip():
             if req.university.strip() not in (block.get("university") or ""):
                 continue

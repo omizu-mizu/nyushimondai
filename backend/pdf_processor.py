@@ -368,12 +368,28 @@ def _build_blocks(entry, images_dir):
     return blocks
 
 
-def process_pdf(pdf_path, images_dir, progress_cb=None):
+def process_pdf(pdf_path, images_dir, progress_cb=None, on_entry_blocks=None):
+    """PDFを解析し、検出した大問ブロックの一覧を返す。
+
+    on_entry_blocks が指定されている場合、1エントリ(1大学・1日程分)の
+    解析が完了するたびにそのエントリのブロック一覧を渡して呼び出す。
+    これにより、呼び出し側は処理の途中経過を逐次保存でき、処理が中断
+    されても、それまでに完了したエントリの結果は失われない。
+    """
     doc = fitz.open(pdf_path)
     total_pages = len(doc)
-    entries = []
     current = None
     mode = None  # "problem" | "solution"
+    all_blocks = []
+
+    def finalize_current():
+        nonlocal current
+        if current:
+            blocks = _build_blocks(current, images_dir)
+            all_blocks.extend(blocks)
+            if on_entry_blocks:
+                on_entry_blocks(blocks)
+        current = None
 
     try:
         for page_index in range(total_pages):
@@ -385,8 +401,7 @@ def process_pdf(pdf_path, images_dir, progress_cb=None):
             if is_entry_start(lines):
                 title = find_university_title(lines)
                 if title:
-                    if current:
-                        entries.append(current)
+                    finalize_current()
                     current = {
                         "university": title,
                         "year": extract_year(full_text),
@@ -435,10 +450,5 @@ def process_pdf(pdf_path, images_dir, progress_cb=None):
     finally:
         doc.close()
 
-    if current:
-        entries.append(current)
-
-    blocks = []
-    for entry in entries:
-        blocks.extend(_build_blocks(entry, images_dir))
-    return blocks
+    finalize_current()
+    return all_blocks
