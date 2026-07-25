@@ -82,3 +82,11 @@ class Storage:
             data["blocks"] = [b for b in data["blocks"] if b["pdf_id"] != pdf_id]
             self._write(data)
             return removed_blocks
+
+    def delete_block(self, block_id):
+        with _LOCK:
+            data = self._read()
+            removed = next((b for b in data["blocks"] if b["id"] == block_id), None)
+            data["blocks"] = [b for b in data["blocks"] if b["id"] != block_id]
+            self._write(data)
+            return removed

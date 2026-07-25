@@ -217,6 +217,7 @@ async function loadReview() {
               <input type="text" data-field="unit_tags" value="${escapeHtml((b.unit_tags || []).join(", "))}" />
             </div>
             <button type="button" class="save-btn">保存</button>
+            <button type="button" class="delete-block-btn">この問題を削除</button>
             <span class="save-result"></span>
           </div>
         </div>`
@@ -264,6 +265,13 @@ async function loadReview() {
       } catch (err) {
         resultEl.textContent = `エラー: ${err.message}`;
       }
+    });
+
+    row.querySelector(".delete-block-btn").addEventListener("click", async () => {
+      if (!confirm("この問題を削除しますか?")) return;
+      await fetch(`/api/blocks/${blockId}`, { method: "DELETE" });
+      row.remove();
+      loadMeta();
     });
   });
 

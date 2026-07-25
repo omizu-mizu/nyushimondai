@@ -94,6 +94,17 @@ def update_block(block_id: str, body: BlockUpdate):
     return updated
 
 
+@app.delete("/api/blocks/{block_id}")
+def delete_block(block_id: str):
+    removed = storage.delete_block(block_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="指定された問題が見つかりません")
+    image_path = os.path.join(IMAGES_DIR, removed["image_file"])
+    if os.path.exists(image_path):
+        os.remove(image_path)
+    return {"status": "deleted"}
+
+
 @app.delete("/api/pdfs/{pdf_id}")
 def delete_pdf(pdf_id: str):
     data = storage.all()
